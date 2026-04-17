@@ -164,3 +164,17 @@ cython_debug/
 
 # ignore personal config file
 config.yaml
+
+# Claude/agent generated output
+.agents/
+.claude/
+.crush/
+.openhands/
+.serena/
+dogfood-output/
+docs/plans/
+task_plan.md
+findings.md
+progress.md
+.playwright-mcp/
+content/
