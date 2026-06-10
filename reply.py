@@ -17,18 +17,16 @@ auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
 auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 api = tweepy.API(auth)
 
-# The annoying user's Twitter handle (without the '@')
-target_user = "m__dominguez" # the annoying socialist scum who's been messaging me for the past 2 weeks while I was in Las Vegas
-
-# Message to reply with
-reply_message = "Amargado!"
+# The target user's Twitter handle (without the '@') and the canned reply
+target_user = config['TARGET_USER']
+reply_message = config['REPLY_MESSAGE']
 
 def respond_to_mentions():
     # Fetch the latest mentions
     mentions = api.mentions_timeline(count=5)  # Adjust count to fit your needs
     
     for mention in mentions:
-        if target_user in mention.user.screen_name:  # Check if the mention is from the target user
+        if mention.user.screen_name.lower() == target_user.lower():  # Check if the mention is from the target user
             print(f"Checking mention from {mention.user.screen_name}...")
 
             # Check if we've already replied to this tweet
@@ -53,5 +51,10 @@ def respond_to_mentions():
 
 if __name__ == "__main__":
     while True:
-        respond_to_mentions()
+        try:
+            respond_to_mentions()
+        except tweepy.TweepyException as e:
+            # Log and keep running: a rate limit, network blip, or 5xx
+            # must not kill a daemon meant to run unattended for weeks.
+            print(f"API error, continuing: {e}")
         time.sleep(60)  # Check for new mentions every 60 seconds
