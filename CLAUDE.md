@@ -55,9 +55,16 @@ Single-file (`reply.py`). Main loop runs every 60 seconds:
 4. Waits random 60-120s before posting (anti-bot appearance)
 5. Posts reply via `api.update_status`
 
-Each iteration of the loop wraps `respond_to_mentions()` in a
-`try/except tweepy.TweepyException`, so a rate limit, network blip, or 5xx
-is logged and the daemon keeps running.
+Each iteration of the loop wraps `respond_to_mentions()` in a broad
+`try/except Exception`, so a rate limit, network blip, 5xx, or a raw
+connection/DNS error is logged (with a timestamp via `logging`) and the
+daemon keeps running. `KeyboardInterrupt` and `SystemExit` still propagate,
+so Ctrl-C and config-validation failures stop the process cleanly.
+
+Config loading is wrapped in `load_config()`, which validates the six
+required keys and exits with a message naming any that are missing, and the
+API client is built in `build_api()` — so the module imports cleanly without
+a live `config.yaml` (useful for testing).
 
 ## Gotchas
 

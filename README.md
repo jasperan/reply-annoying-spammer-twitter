@@ -37,7 +37,9 @@ Both the target user and the reply message are read from `config.yaml` — no ne
 uv run reply.py
 ```
 
-Runs an infinite loop: checks mentions every 60 seconds, replies to new ones from the target user after a random 60-120 second delay. API errors are logged and the loop keeps running, so it survives rate limits and network blips. Best run inside `tmux` or `screen`.
+Runs an infinite loop: checks mentions every 60 seconds, replies to new ones from the target user after a random 60-120 second delay. Errors are logged with timestamps and the loop keeps running, so it survives rate limits, network blips, and other transient failures. Best run inside `tmux` or `screen`.
+
+If `config.yaml` is missing or a required key is absent, the bot exits immediately with a message naming the problem.
 
 ## How It Works
 
