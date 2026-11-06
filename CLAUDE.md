@@ -49,9 +49,9 @@ tmux new -s spammer && uv run reply.py
 
 Single-file (`reply.py`). Main loop runs every 60 seconds:
 
-1. Fetches last 5 mentions via `api.mentions_timeline(count=5)`
+1. Fetches up to 200 mentions newer than the in-memory `since_id` cursor via `api.mentions_timeline`
 2. Filters for `TARGET_USER` by `screen_name` (case-insensitive equality)
-3. Searches for existing replies via `api.search_tweets` to avoid duplicates
+3. Searches for existing replies authored by the authenticated account (`verify_credentials().id_str`) via `api.search_tweets` to avoid duplicates
 4. Waits random 60-120s before posting (anti-bot appearance)
 5. Posts reply via `api.update_status`
 
@@ -70,4 +70,4 @@ a live `config.yaml` (useful for testing).
 
 - Requires **Elevated** Twitter API access (free Basic tier won't work for `mentions_timeline`)
 - `api.search_tweets` duplicate-check can miss replies if the search window is narrow; tune `since_id` if you see double-replies
-- No persistent state: if the process restarts, already-replied tweets are re-checked via live search (works, but hits rate limits faster)
+- No on-disk state (the `since_id` cursor is in memory only): if the process restarts, already-replied tweets are re-checked via live search (works, but hits rate limits faster)

@@ -21,6 +21,9 @@ REQUIRED_KEYS = (
     "REPLY_MESSAGE",
 )
 
+# Maximum mentions fetched per poll (the API's per-request ceiling).
+MENTIONS_PER_POLL = 200
+
 
 def load_config(path="config.yaml"):
     """Load and validate the YAML config, failing with a clear message."""
@@ -48,17 +51,34 @@ def build_api(config):
     return tweepy.API(auth)
 
 
-def respond_to_mentions(api, target_user, reply_message):
-    # Fetch the latest mentions
-    mentions = api.mentions_timeline(count=5)  # Adjust count to fit your needs
+def respond_to_mentions(api, target_user, reply_message, own_id, state=None):
+    """Reply to new mentions from target_user.
 
-    for mention in mentions:
+    own_id is the authenticated account's id_str; only replies authored by it
+    count as "already replied". state is a dict carried across polls that keeps
+    the newest examined mention id so a burst of mentions cannot push the
+    target's mention out of the fetch window.
+    """
+    if state is None:
+        state = {}
+    kwargs = {"count": MENTIONS_PER_POLL}
+    if state.get("since_id"):
+        kwargs["since_id"] = state["since_id"]
+    mentions = api.mentions_timeline(**kwargs)
+
+    # Oldest first, so the cursor only advances past mentions already handled.
+    for mention in sorted(mentions, key=lambda m: m.id):
         if mention.user.screen_name.lower() == target_user.lower():  # Check if the mention is from the target user
             logger.info("Checking mention from %s...", mention.user.screen_name)
 
             # Check if we've already replied to this tweet
             replies = api.search_tweets(q=f"to:{mention.user.screen_name}", since_id=mention.id, tweet_mode='extended')
-            already_replied = any(reply.in_reply_to_status_id == mention.id and reply_message in reply.full_text for reply in replies)
+            already_replied = any(
+                reply.in_reply_to_status_id == mention.id
+                and reply.user.id_str == own_id
+                and reply_message in reply.full_text
+                for reply in replies
+            )
 
             if not already_replied:
                 logger.info("Replying to %s...", mention.user.screen_name)
@@ -79,6 +99,7 @@ def respond_to_mentions(api, target_user, reply_message):
                     mention.id,
                     mention.created_at,
                 )
+        state["since_id"] = mention.id
 
 
 def main():
@@ -86,10 +107,12 @@ def main():
     api = build_api(config)
     target_user = config["TARGET_USER"]
     reply_message = config["REPLY_MESSAGE"]
+    own_id = api.verify_credentials().id_str
+    state = {}
 
     while True:
         try:
-            respond_to_mentions(api, target_user, reply_message)
+            respond_to_mentions(api, target_user, reply_message, own_id, state)
         except Exception as e:
             # Log and keep running: a rate limit, network blip, or 5xx
             # must not kill a daemon meant to run unattended for weeks.
